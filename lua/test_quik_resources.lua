@@ -29,8 +29,8 @@ function main()
       if (hConnDlg ~= 0) then
         message("Connection dialog handle: " .. tostring(hConnDlg))
 
-        qres.set_dlg_item_text(hConnDlg, 10101, "Ê")
-        qres.set_dlg_item_text(hConnDlg, 10102, "654321")
+        qres.set_dlg_item_text(hConnDlg, 10101, "quik_login")
+        qres.set_dlg_item_text(hConnDlg, 10102, "quik_password")
         qres.post_message(hConnDlg, WM_COMMAND, IDOK, 0)
       else
         message("Unable to get connection dialog handle", 2)
