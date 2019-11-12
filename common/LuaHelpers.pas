@@ -2,7 +2,7 @@ unit LuaHelpers;
 
 interface
 
-uses 
+uses
   Classes, SysUtils,
   LuaLib;
 
@@ -29,8 +29,8 @@ type
     constructor create(AContext: TLuaContext);
     destructor  destroy; override;
     function    AsBoolean(adefault: boolean = false): boolean;
-    function    AsInteger(adefault: integer = 0): integer;
-    function    AsNumber(adefault: double = 0.0): double;
+    function    AsInteger(const adefault: int64 = 0): int64;
+    function    AsNumber(const adefault: double = 0.0): double;
     function    AsString(const adefault: ansistring = ''): ansistring;
     function    AsTable: TLuaTable;
 
@@ -188,10 +188,10 @@ begin
   end;
 end;
 
-function TLuaField.AsInteger(adefault: integer): integer;
+function TLuaField.AsInteger(const adefault: int64): int64;
 begin result:= round(AsNumber(adefault)); end;
 
-function TLuaField.AsNumber(adefault: double): double;
+function TLuaField.AsNumber(const adefault: double): double;
 begin
   case fFieldType of
     LUA_TBOOLEAN : result:= integer(fBool);
@@ -361,17 +361,23 @@ begin
   if (AResCount < 0) then AResCount:= LUA_MULTRET;
   lua_pushstring(fContext.CurrentState, pAnsiChar(AName));
   lua_rawget(fContext.CurrentState, Index);
-  lua_pushvalue(fContext.CurrentState, Index);
-  fContext.PushArgs(AArgs);
-  if (lua_pcall(fContext.CurrentState, length(aargs) + 1, AResCount, 0) = 0) then begin
-    if (AResType <> LUA_TNONE) then begin
-      result:= (lua_type(fContext.CurrentState, -1) = AResType);
-      if not result and (AResCount > 0) then lua_pop(fContext.CurrentState, AResCount);
-    end else result:= true;
+  if (lua_type(fContext.CurrentState, -1) = LUA_TFUNCTION) then begin
+    lua_pushvalue(fContext.CurrentState, Index);
+    fContext.PushArgs(AArgs);
+    if (lua_pcall(fContext.CurrentState, length(aargs) + 1, AResCount, 0) = 0) then begin
+      if (AResType <> LUA_TNONE) then begin
+        result:= (lua_type(fContext.CurrentState, -1) = AResType);
+        if not result and (AResCount > 0) then lua_pop(fContext.CurrentState, AResCount);
+      end else result:= true;
+    end else begin
+      len:= 0;
+      SetString(error, lua_tolstring(fContext.CurrentState, -1, len), len);
+      lua_pop(fContext.CurrentState, 1);
+      result:= false;
+    end;
   end else begin
-    len:= 0;
-    SetString(error, lua_tolstring(fContext.CurrentState, -1, len), len);
     lua_pop(fContext.CurrentState, 1);
+    error:= format('Method %s is not a function', [AName]);
     result:= false;
   end;
 end;
@@ -483,30 +489,41 @@ end;
 function TLuaContext.Call(const AName: ansistring; const AArgs: array of const; AResCount: integer; AResType: integer): boolean;
 begin
   if (AResCount < 0) then AResCount:= LUA_MULTRET;
-  lua_getglobal(fLuaState, pAnsiChar(AName));                              // get function index
-  PushArgs(aargs);                                                         // push parameters
-  lua_call(fLuaState, length(aargs), AResCount);                           // call function
-  if (AResType <> LUA_TNONE) then begin
-    result:= (lua_type(fLuaState, -1) = AResType);
-    if not result and (AResCount > 0) then lua_pop(fLuaState, AResCount);  // cleanup stack if unexpected type returned
-  end else result:= true;
+  lua_getglobal(fLuaState, pAnsiChar(AName));                                // get function index
+  if (lua_type(fLuaState, -1) = LUA_TFUNCTION) then begin
+    PushArgs(aargs);                                                         // push parameters
+    lua_call(fLuaState, length(aargs), AResCount);                           // call function
+    if (AResType <> LUA_TNONE) then begin
+      result:= (lua_type(fLuaState, -1) = AResType);
+      if not result and (AResCount > 0) then lua_pop(fLuaState, AResCount);  // cleanup stack if unexpected type returned
+    end else result:= true;
+  end else begin
+    lua_pop(fLuaState, 1);
+    result:= false;
+  end;
 end;
 
 function TLuaContext.CallSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring; AResType: integer): boolean;
 var len: cardinal;
 begin
   if (AResCount < 0) then AResCount:= LUA_MULTRET;
-  lua_getglobal(fLuaState, pAnsiChar(AName));                              // get function index
-  PushArgs(aargs);                                                         // push parameters
-  if (lua_pcall(fLuaState, length(aargs), AResCount, 0) = 0) then begin    // call function in "protected mode"
-    if (AResType <> LUA_TNONE) then begin
-      result:= (lua_type(fLuaState, -1) = AResType);
-      if not result and (AResCount > 0) then lua_pop(fLuaState, AResCount);// cleanup stack if unexpected type returned
-    end else result:= true;
+  lua_getglobal(fLuaState, pAnsiChar(AName));                                // get function index
+  if (lua_type(fLuaState, -1) = LUA_TFUNCTION) then begin
+    PushArgs(aargs);                                                         // push parameters
+    if (lua_pcall(fLuaState, length(aargs), AResCount, 0) = 0) then begin    // call function in "protected mode"
+      if (AResType <> LUA_TNONE) then begin
+        result:= (lua_type(fLuaState, -1) = AResType);
+        if not result and (AResCount > 0) then lua_pop(fLuaState, AResCount);// cleanup stack if unexpected type returned
+      end else result:= true;
+    end else begin
+      len:= 0;
+      SetString(error, lua_tolstring(fLuaState, -1, len), len);
+      lua_pop(fLuaState, 1);
+      result:= false;
+    end;
   end else begin
-    len:= 0;
-    SetString(error, lua_tolstring(fLuaState, -1, len), len);
     lua_pop(fLuaState, 1);
+    error:= format('Global %s is not a function', [AName]);
     result:= false;
   end;
 end;
