@@ -6,6 +6,13 @@ uses
   Classes, SysUtils,
   LuaLib;
 
+const
+  LUA_TANY      = LUA_TNONE;
+
+const
+  LIST_KEYVALUE = true;
+  LIST_STRINGS  = false;
+  
 type
   TLuaState     = LuaLib.lua_State;
 
@@ -28,7 +35,7 @@ type
   public
     constructor create(AContext: TLuaContext);
     destructor  destroy; override;
-    function    AsBoolean(adefault: boolean = false): boolean;
+    function    AsBoolean(const adefault: boolean = false): boolean;
     function    AsInteger(const adefault: int64 = 0): int64;
     function    AsNumber(const adefault: double = 0.0): double;
     function    AsString(const adefault: ansistring = ''): ansistring;
@@ -90,13 +97,21 @@ type
     constructor create(ALuaState: TLuaState);
     destructor  destroy; override;
 
-    function    PushArgs(const aargs: array of const; avalueslist: boolean = true): integer;
+    procedure   SetLuaState(ALuaState: TLuaState);
 
-    function    PushTable(aKVTable: tStringList; avalueslist: boolean = true): integer; overload;
+    function    PushArgs(const aargs: array of const; avalueslist: boolean): integer; overload;
+    function    PushArgs(const aargs: array of const): integer; overload;
+    function    PushArgs(aargs: tStringList): integer; overload;
+
+    function    PushTable(aKVTable: tStringList; avalueslist: boolean): integer; overload;
     function    PushTable(const aargs: array of const): integer; overload;  // aargs must look like: ['name1', value1, 'name2', value2]
 
-    function    Call(const AName: ansistring; const AArgs: array of const; AResCount: integer; AResType: integer = LUA_TNONE): boolean;
-    function    CallSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring; AResType: integer = LUA_TNONE): boolean;
+    function    Call(const AName: ansistring; const AArgs: array of const; AResCount: integer; AResType: integer = LUA_TANY): boolean;
+
+    function    CallSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring; AResType: integer): boolean; overload;
+    function    CallSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring): boolean; overload;
+    function    CallSafe(const AName: ansistring; aargs: tStringList; AResCount: integer; var error: ansistring; AResType: integer): boolean; overload;
+    function    CallSafe(const AName: ansistring; aargs: tStringList; AResCount: integer; var error: ansistring): boolean; overload;
 
     function    ExecuteSafe(const AScript: ansistring; AResCount: integer; var error: ansistring): boolean;
 
@@ -178,7 +193,7 @@ begin
   finally lua_pop(fContext.CurrentState, 1); end;
 end;
 
-function TLuaField.AsBoolean(adefault: boolean): boolean;
+function TLuaField.AsBoolean(const adefault: boolean): boolean;
 begin
   case fFieldType of
     LUA_TBOOLEAN : result:= fBool;
@@ -397,6 +412,9 @@ begin
   inherited destroy;
 end;
 
+procedure TLuaContext.SetLuaState(ALuaState: TLuaState);
+begin fLuaState:= ALuaState; end;
+
 function TLuaContext.fGetStackByIndex(AIndex: integer): TLuaField;
 begin
   if not assigned(fField) then fField:= TLuaField.create(Self);
@@ -435,6 +453,19 @@ begin
     end;
   end;
   result:= length(aargs);
+end;
+
+function TLuaContext.PushArgs(const aargs: array of const): integer;
+begin result:= PushArgs(aargs, LIST_KEYVALUE); end;
+
+function TLuaContext.PushArgs(aargs: tStringList): integer;
+var i : integer;
+begin
+  if assigned(aargs) then begin
+    for i:= 0 to aargs.count - 1 do
+      lua_pushstring(fLuaState, pAnsiChar(aargs[i]));
+    result:= aargs.Count;
+  end else result:= 0;
 end;
 
 function TLuaContext.PushTable(aKVTable: tStringList; avalueslist: boolean): integer;
@@ -509,8 +540,8 @@ begin
   if (AResCount < 0) then AResCount:= LUA_MULTRET;
   lua_getglobal(fLuaState, pAnsiChar(AName));                                // get function index
   if (lua_type(fLuaState, -1) = LUA_TFUNCTION) then begin
-    PushArgs(aargs);                                                         // push parameters
-    if (lua_pcall(fLuaState, length(aargs), AResCount, 0) = 0) then begin    // call function in "protected mode"
+    len:= PushArgs(aargs);                                                   // push parameters
+    if (lua_pcall(fLuaState, len, AResCount, 0) = 0) then begin              // call function in "protected mode"
       if (AResType <> LUA_TNONE) then begin
         result:= (lua_type(fLuaState, -1) = AResType);
         if not result and (AResCount > 0) then lua_pop(fLuaState, AResCount);// cleanup stack if unexpected type returned
@@ -527,6 +558,37 @@ begin
     result:= false;
   end;
 end;
+
+function TLuaContext.CallSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring): boolean; 
+begin result:= CallSafe(AName, aargs, AResCount, error, LUA_TANY); end;
+
+function TLuaContext.CallSafe(const AName: ansistring; aargs: tStringList; AResCount: integer; var error: ansistring; AResType: integer): boolean;
+var len: cardinal;
+begin
+  if (AResCount < 0) then AResCount:= LUA_MULTRET;
+  lua_getglobal(fLuaState, pAnsiChar(AName));                                // get function index
+  if (lua_type(fLuaState, -1) = LUA_TFUNCTION) then begin
+    len:= PushArgs(aargs);                                                   // push parameters
+    if (lua_pcall(fLuaState, len, AResCount, 0) = 0) then begin              // call function in "protected mode"
+      if (AResType <> LUA_TNONE) then begin
+        result:= (lua_type(fLuaState, -1) = AResType);
+        if not result and (AResCount > 0) then lua_pop(fLuaState, AResCount);// cleanup stack if unexpected type returned
+      end else result:= true;
+    end else begin
+      len:= 0;
+      SetString(error, lua_tolstring(fLuaState, -1, len), len);
+      lua_pop(fLuaState, 1);
+      result:= false;
+    end;
+  end else begin
+    lua_pop(fLuaState, 1);
+    error:= format('Global %s is not a function', [AName]);
+    result:= false;
+  end;
+end;
+
+function TLuaContext.CallSafe(const AName: ansistring; aargs: tStringList; AResCount: integer; var error: ansistring): boolean;
+begin result:= CallSafe(AName, aargs, AResCount, error, LUA_TANY); end;
 
 function TLuaContext.ExecuteSafe(const AScript: ansistring; AResCount: integer; var error: ansistring): boolean;
 var len: cardinal;

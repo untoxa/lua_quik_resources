@@ -437,8 +437,8 @@ var
   (* to help testing the libraries *)
   procedure lua_assert(c: Boolean);
 
-  function lua_number2str(s: Lua_Number; n: Integer): String;
-  function lua_str2number(s: String; p: integer): Lua_Number;
+  function lua_number2str(s: Lua_Number; n: Integer): ansistring;
+  function lua_str2number(s: ansistring; p: integer): Lua_Number;
 
   (* argument and parameters checks *)
   function luaL_argcheck(L: lua_State; cond: Boolean; narg: Integer; extramsg: PAnsiChar): Integer;
@@ -508,12 +508,13 @@ var
   (*
   ** Dynamic library manipulation
   *)
-  function  GetProcAddr( fHandle: THandle; const methodName: String; bErrorIfNotExists: Boolean = True ): Pointer;
-  procedure SetLuaLibFileName( newLuaLibFileName: String );
-  function  GetLuaLibFileName(): String;
-  function  LoadLuaLib( newLuaLibFileName: String = '' ): Integer;
+  function  GetProcAddr(fHandle: THandle; const methodName: ansistring; bErrorIfNotExists: Boolean = True ): Pointer;
+  procedure SetLuaLibFileName( newLuaLibFileName: ansistring);
+  function  GetLuaLibFileName(): ansistring;
+  function  LoadLuaLib(newLuaLibFileName: ansistring = ''): HMODULE;
+  function  InitializeLuaLib(ALibHandle: HMODULE): HMODULE;
   procedure FreeLuaLib();
-  function LuaLibLoaded: Boolean;
+  function  LuaLibLoaded: Boolean;
 
 implementation
 
@@ -521,27 +522,27 @@ uses
   SysUtils, Math;
 
 var
-  fLibHandle: THANDLE = 0;
-  fLuaLibFileName: String = 'Lua5.1.dll';
+  fLibHandle: HMODULE = 0;
+  fLibLoaded: boolean = false;
+  fLuaLibFileName: ansistring = 'Lua5.1.dll';
 
 (*
 ** Dynamic library manipulation
 *)
 
-function GetProcAddr( fHandle: THandle; const methodName: String; bErrorIfNotExists: Boolean = True ): Pointer;
+function GetProcAddr( fHandle: THandle; const methodName: ansistring; bErrorIfNotExists: Boolean = True ): Pointer;
 begin
-  Result := GetProcAddress( fHandle, PAnsiChar( AnsiString(methodName) ) );
-
+  Result := GetProcAddress(fHandle, PAnsiChar(methodName));
   if bErrorIfNotExists and ( Result = nil ) then
-     Raise Exception.Create( 'Cannot load method ' + QuotedStr( methodName ) + ' from dynamic library.' );
+     Raise Exception.CreateFmt('Cannot load method "%s" from dynamic library.', [methodName]);
 end;
 
-procedure SetLuaLibFileName( newLuaLibFileName: String );
+procedure SetLuaLibFileName(newLuaLibFileName: ansistring);
 begin
   fLuaLibFileName := newLuaLibFileName;
 end;
 
-function GetLuaLibFileName(): String;
+function GetLuaLibFileName(): ansistring;
 begin
   Result := fLuaLibFileName;
 end;
@@ -551,9 +552,140 @@ begin
    Result := fLibHandle <> 0;
 end;
 
+function  InitializeLuaLib(ALibHandle: HMODULE): HMODULE;
+begin
+  lua_newstate       := GetProcAddr(ALibHandle, 'lua_newstate' );
+  lua_close          := GetProcAddr(ALibHandle, 'lua_close' );
+  lua_newthread      := GetProcAddr(ALibHandle, 'lua_newthread' );
+  lua_atpanic        := GetProcAddr(ALibHandle, 'lua_atpanic' );
+  lua_gettop         := GetProcAddr(ALibHandle, 'lua_gettop' );
+  lua_settop         := GetProcAddr(ALibHandle, 'lua_settop' );
+  lua_pushvalue      := GetProcAddr(ALibHandle, 'lua_pushvalue' );
+  lua_remove         := GetProcAddr(ALibHandle, 'lua_remove' );
+  lua_insert         := GetProcAddr(ALibHandle, 'lua_insert' );
+  lua_replace        := GetProcAddr(ALibHandle, 'lua_replace' );
+  lua_checkstack     := GetProcAddr(ALibHandle, 'lua_checkstack' );
+  lua_xmove          := GetProcAddr(ALibHandle, 'lua_xmove' );
+  lua_isnumber       := GetProcAddr(ALibHandle, 'lua_isnumber' );
+  lua_isstring       := GetProcAddr(ALibHandle, 'lua_isstring' );
+  lua_iscfunction    := GetProcAddr(ALibHandle, 'lua_iscfunction' );
+  lua_isuserdata     := GetProcAddr(ALibHandle, 'lua_isuserdata' );
+  lua_type           := GetProcAddr(ALibHandle, 'lua_type' );
+  lua_typename       := GetProcAddr(ALibHandle, 'lua_typename' );
+  lua_equal          := GetProcAddr(ALibHandle, 'lua_equal' );
+  lua_rawequal       := GetProcAddr(ALibHandle, 'lua_rawequal' );
+  lua_lessthan       := GetProcAddr(ALibHandle, 'lua_lessthan' );
+  lua_tonumber       := GetProcAddr(ALibHandle, 'lua_tonumber' );
+  lua_tointeger      := GetProcAddr(ALibHandle, 'lua_tointeger' );
+  lua_toboolean      := GetProcAddr(ALibHandle, 'lua_toboolean' );
+  lua_tolstring      := GetProcAddr(ALibHandle, 'lua_tolstring' );
+  lua_objlen         := GetProcAddr(ALibHandle, 'lua_objlen' );
+  lua_tocfunction    := GetProcAddr(ALibHandle, 'lua_tocfunction' );
+  lua_touserdata     := GetProcAddr(ALibHandle, 'lua_touserdata' );
+  lua_tothread       := GetProcAddr(ALibHandle, 'lua_tothread' );
+  lua_topointer      := GetProcAddr(ALibHandle, 'lua_topointer' );
+  lua_pushnil        := GetProcAddr(ALibHandle, 'lua_pushnil' );
+  lua_pushnumber     := GetProcAddr(ALibHandle, 'lua_pushnumber' );
+  lua_pushinteger    := GetProcAddr(ALibHandle, 'lua_pushinteger' );
+  lua_pushlstring    := GetProcAddr(ALibHandle, 'lua_pushlstring' );
+  lua_pushstring     := GetProcAddr(ALibHandle, 'lua_pushstring' );
+  lua_pushvfstring   := GetProcAddr(ALibHandle, 'lua_pushvfstring' );
+  lua_pushfstring    := GetProcAddr(ALibHandle, 'lua_pushfstring' );
+  lua_pushcclosure   := GetProcAddr(ALibHandle, 'lua_pushcclosure' );
+  lua_pushboolean    := GetProcAddr(ALibHandle, 'lua_pushboolean' );
+  lua_pushlightuserdata := GetProcAddr(ALibHandle, 'lua_pushlightuserdata' );
+  lua_pushthread     := GetProcAddr(ALibHandle, 'lua_pushthread' );
+  lua_gettable       := GetProcAddr(ALibHandle, 'lua_gettable' );
+  lua_getfield       := GetProcAddr(ALibHandle, 'lua_getfield' );
+  lua_rawget         := GetProcAddr(ALibHandle, 'lua_rawget' );
+  lua_rawgeti        := GetProcAddr(ALibHandle, 'lua_rawgeti' );
+  lua_createtable    := GetProcAddr(ALibHandle, 'lua_createtable' );
+  lua_newuserdata    := GetProcAddr(ALibHandle, 'lua_newuserdata' );
+  lua_getmetatable   := GetProcAddr(ALibHandle, 'lua_getmetatable' );
+  lua_getfenv        := GetProcAddr(ALibHandle, 'lua_getfenv' );
+  lua_settable       := GetProcAddr(ALibHandle, 'lua_settable' );
+  lua_setfield       := GetProcAddr(ALibHandle, 'lua_setfield' );
+  lua_rawset         := GetProcAddr(ALibHandle, 'lua_rawset' );
+  lua_rawseti        := GetProcAddr(ALibHandle, 'lua_rawseti' );
+  lua_setmetatable   := GetProcAddr(ALibHandle, 'lua_setmetatable' );
+  lua_setfenv        := GetProcAddr(ALibHandle, 'lua_setfenv' );
+  lua_call           := GetProcAddr(ALibHandle, 'lua_call' );
+  lua_pcall          := GetProcAddr(ALibHandle, 'lua_pcall' );
+  lua_cpcall         := GetProcAddr(ALibHandle, 'lua_cpcall' );
+  lua_load           := GetProcAddr(ALibHandle, 'lua_load' );
+  lua_dump           := GetProcAddr(ALibHandle, 'lua_dump' );
+  lua_yield          := GetProcAddr(ALibHandle, 'lua_yield' );
+  lua_resume         := GetProcAddr(ALibHandle, 'lua_resume' );
+  lua_status         := GetProcAddr(ALibHandle, 'lua_status' );
+  lua_gc             := GetProcAddr(ALibHandle, 'lua_gc' );
+  lua_error          := GetProcAddr(ALibHandle, 'lua_error' );
+  lua_next           := GetProcAddr(ALibHandle, 'lua_next' );
+  lua_concat         := GetProcAddr(ALibHandle, 'lua_concat' );
+  lua_getallocf      := GetProcAddr(ALibHandle, 'lua_getallocf' );
+  lua_setallocf      := GetProcAddr(ALibHandle, 'lua_setallocf' );
+  lua_getstack       := GetProcAddr(ALibHandle, 'lua_getstack' );
+  lua_getinfo        := GetProcAddr(ALibHandle, 'lua_getinfo' );
+  lua_getlocal       := GetProcAddr(ALibHandle, 'lua_getlocal' );
+  lua_setlocal       := GetProcAddr(ALibHandle, 'lua_setlocal' );
+  lua_getupvalue     := GetProcAddr(ALibHandle, 'lua_getupvalue' );
+  lua_setupvalue     := GetProcAddr(ALibHandle, 'lua_setupvalue' );
+  lua_sethook        := GetProcAddr(ALibHandle, 'lua_sethook' );
+  lua_gethook        := GetProcAddr(ALibHandle, 'lua_gethook' );
+  lua_gethookmask    := GetProcAddr(ALibHandle, 'lua_gethookmask' );
+  lua_gethookcount   := GetProcAddr(ALibHandle, 'lua_gethookcount' );
+  luaopen_base       := GetProcAddr(ALibHandle, 'luaopen_base' );
+  luaopen_table      := GetProcAddr(ALibHandle, 'luaopen_table' );
+  luaopen_io         := GetProcAddr(ALibHandle, 'luaopen_io' );
+  luaopen_os         := GetProcAddr(ALibHandle, 'luaopen_os' );
+  luaopen_string     := GetProcAddr(ALibHandle, 'luaopen_string' );
+  luaopen_math       := GetProcAddr(ALibHandle, 'luaopen_math' );
+  luaopen_debug      := GetProcAddr(ALibHandle, 'luaopen_debug' );
+  luaopen_package    := GetProcAddr(ALibHandle, 'luaopen_package' );
+  luaL_openlibs      := GetProcAddr(ALibHandle, 'luaL_openlibs' );
+  luaL_register      := GetProcAddr(ALibHandle, 'luaL_register' );
+  luaL_getmetafield  := GetProcAddr(ALibHandle, 'luaL_getmetafield' );
+  luaL_callmeta      := GetProcAddr(ALibHandle, 'luaL_callmeta' );
+  luaL_typerror      := GetProcAddr(ALibHandle, 'luaL_typerror' );
+  luaL_argerror      := GetProcAddr(ALibHandle, 'luaL_argerror' );
+  luaL_checklstring  := GetProcAddr(ALibHandle, 'luaL_checklstring' );
+  luaL_optlstring    := GetProcAddr(ALibHandle, 'luaL_optlstring' );
+  luaL_checknumber   := GetProcAddr(ALibHandle, 'luaL_checknumber' );
+  luaL_optnumber     := GetProcAddr(ALibHandle, 'luaL_optnumber' );
+  luaL_checkinteger  := GetProcAddr(ALibHandle, 'luaL_checkinteger' );
+  luaL_optinteger    := GetProcAddr(ALibHandle, 'luaL_optinteger' );
+  luaL_checkstack    := GetProcAddr(ALibHandle, 'luaL_checkstack' );
+  luaL_checktype     := GetProcAddr(ALibHandle, 'luaL_checktype' );
+  luaL_checkany      := GetProcAddr(ALibHandle, 'luaL_checkany' );
+  luaL_newmetatable  := GetProcAddr(ALibHandle, 'luaL_newmetatable' );
+  luaL_checkudata    := GetProcAddr(ALibHandle, 'luaL_checkudata' );
+  luaL_where         := GetProcAddr(ALibHandle, 'luaL_where' );
+  luaL_error         := GetProcAddr(ALibHandle, 'luaL_error' );
+  luaL_checkoption   := GetProcAddr(ALibHandle, 'luaL_checkoption' );
+  luaL_ref           := GetProcAddr(ALibHandle, 'luaL_ref' );
+  luaL_unref         := GetProcAddr(ALibHandle, 'luaL_unref' );
+{$ifdef LUA_COMPAT_GETN}
+  luaL_getn          := GetProcAddr(ALibHandle, 'luaL_getn' );
+  luaL_setn          := GetProcAddr(ALibHandle, 'luaL_setn' );
+{$endif}
+  luaL_loadfile      := GetProcAddr(ALibHandle, 'luaL_loadfile' );
+  luaL_loadbuffer    := GetProcAddr(ALibHandle, 'luaL_loadbuffer' );
+  luaL_loadstring    := GetProcAddr(ALibHandle, 'luaL_loadstring' );
+  luaL_newstate      := GetProcAddr(ALibHandle, 'luaL_newstate' );
+  luaL_gsub          := GetProcAddr(ALibHandle, 'luaL_gsub' );
+  luaL_findtable     := GetProcAddr(ALibHandle, 'luaL_findtable' );
+  luaL_buffinit      := GetProcAddr(ALibHandle, 'luaL_buffinit' );
+  luaL_prepbuffer    := GetProcAddr(ALibHandle, 'luaL_prepbuffer' );
+  luaL_addlstring    := GetProcAddr(ALibHandle, 'luaL_addlstring' );
+  luaL_addstring     := GetProcAddr(ALibHandle, 'luaL_addstring' );
+  luaL_addvalue      := GetProcAddr(ALibHandle, 'luaL_addvalue' );
+  luaL_pushresult    := GetProcAddr(ALibHandle, 'luaL_pushresult' );
 
+  fLibHandle:= ALibHandle;
+  result:= ALibHandle;
+end;
 
-function LoadLuaLib(newLuaLibFileName: String): Integer;
+function LoadLuaLib(newLuaLibFileName: ansistring): HMODULE;
+var hlib: HMODULE;
 begin
   FreeLuaLib();
 
@@ -561,144 +693,18 @@ begin
      SetLuaLibFileName( newLuaLibFileName );
 
   if not FileExists( GetLuaLibFileName() ) then begin
-     Result := -1;
+     Result := HMODULE(-1);
      exit;
   end;
 
-  fLibHandle := LoadLibrary( PChar(GetLuaLibFileName()) );
+  hlib := LoadLibrary( PChar(GetLuaLibFileName()));
 
-  if fLibHandle = 0 then begin
-     Result := -2;
+  if (hlib = 0) then begin
+     Result := HMODULE(-2);
      exit;
-  end;
+  end else fLibLoaded:= true;
 
-  lua_newstate       := GetProcAddr( fLibHandle, 'lua_newstate' );
-  lua_close          := GetProcAddr( fLibHandle, 'lua_close' );
-  lua_newthread      := GetProcAddr( fLibHandle, 'lua_newthread' );
-  lua_atpanic        := GetProcAddr( fLibHandle, 'lua_atpanic' );
-  lua_gettop         := GetProcAddr( fLibHandle, 'lua_gettop' );
-  lua_settop         := GetProcAddr( fLibHandle, 'lua_settop' );
-  lua_pushvalue      := GetProcAddr( fLibHandle, 'lua_pushvalue' );
-  lua_remove         := GetProcAddr( fLibHandle, 'lua_remove' );
-  lua_insert         := GetProcAddr( fLibHandle, 'lua_insert' );
-  lua_replace        := GetProcAddr( fLibHandle, 'lua_replace' );
-  lua_checkstack     := GetProcAddr( fLibHandle, 'lua_checkstack' );
-  lua_xmove          := GetProcAddr( fLibHandle, 'lua_xmove' );
-  lua_isnumber       := GetProcAddr( fLibHandle, 'lua_isnumber' );
-  lua_isstring       := GetProcAddr( fLibHandle, 'lua_isstring' );
-  lua_iscfunction    := GetProcAddr( fLibHandle, 'lua_iscfunction' );
-  lua_isuserdata     := GetProcAddr( fLibHandle, 'lua_isuserdata' );
-  lua_type           := GetProcAddr( fLibHandle, 'lua_type' );
-  lua_typename       := GetProcAddr( fLibHandle, 'lua_typename' );
-  lua_equal          := GetProcAddr( fLibHandle, 'lua_equal' );
-  lua_rawequal       := GetProcAddr( fLibHandle, 'lua_rawequal' );
-  lua_lessthan       := GetProcAddr( fLibHandle, 'lua_lessthan' );
-  lua_tonumber       := GetProcAddr( fLibHandle, 'lua_tonumber' );
-  lua_tointeger      := GetProcAddr( fLibHandle, 'lua_tointeger' );
-  lua_toboolean      := GetProcAddr( fLibHandle, 'lua_toboolean' );
-  lua_tolstring      := GetProcAddr( fLibHandle, 'lua_tolstring' );
-  lua_objlen         := GetProcAddr( fLibHandle, 'lua_objlen' );
-  lua_tocfunction    := GetProcAddr( fLibHandle, 'lua_tocfunction' );
-  lua_touserdata     := GetProcAddr( fLibHandle, 'lua_touserdata' );
-  lua_tothread       := GetProcAddr( fLibHandle, 'lua_tothread' );
-  lua_topointer      := GetProcAddr( fLibHandle, 'lua_topointer' );
-  lua_pushnil        := GetProcAddr( fLibHandle, 'lua_pushnil' );
-  lua_pushnumber     := GetProcAddr( fLibHandle, 'lua_pushnumber' );
-  lua_pushinteger    := GetProcAddr( fLibHandle, 'lua_pushinteger' );
-  lua_pushlstring    := GetProcAddr( fLibHandle, 'lua_pushlstring' );
-  lua_pushstring     := GetProcAddr( fLibHandle, 'lua_pushstring' );
-  lua_pushvfstring   := GetProcAddr( fLibHandle, 'lua_pushvfstring' );
-  lua_pushfstring    := GetProcAddr( fLibHandle, 'lua_pushfstring' );
-  lua_pushcclosure   := GetProcAddr( fLibHandle, 'lua_pushcclosure' );
-  lua_pushboolean    := GetProcAddr( fLibHandle, 'lua_pushboolean' );
-  lua_pushlightuserdata := GetProcAddr( fLibHandle, 'lua_pushlightuserdata' );
-  lua_pushthread     := GetProcAddr( fLibHandle, 'lua_pushthread' );
-  lua_gettable       := GetProcAddr( fLibHandle, 'lua_gettable' );
-  lua_getfield       := GetProcAddr( fLibHandle, 'lua_getfield' );
-  lua_rawget         := GetProcAddr( fLibHandle, 'lua_rawget' );
-  lua_rawgeti        := GetProcAddr( fLibHandle, 'lua_rawgeti' );
-  lua_createtable    := GetProcAddr( fLibHandle, 'lua_createtable' );
-  lua_newuserdata    := GetProcAddr( fLibHandle, 'lua_newuserdata' );
-  lua_getmetatable   := GetProcAddr( fLibHandle, 'lua_getmetatable' );
-  lua_getfenv        := GetProcAddr( fLibHandle, 'lua_getfenv' );
-  lua_settable       := GetProcAddr( fLibHandle, 'lua_settable' );
-  lua_setfield       := GetProcAddr( fLibHandle, 'lua_setfield' );
-  lua_rawset         := GetProcAddr( fLibHandle, 'lua_rawset' );
-  lua_rawseti        := GetProcAddr( fLibHandle, 'lua_rawseti' );
-  lua_setmetatable   := GetProcAddr( fLibHandle, 'lua_setmetatable' );
-  lua_setfenv        := GetProcAddr( fLibHandle, 'lua_setfenv' );
-  lua_call           := GetProcAddr( fLibHandle, 'lua_call' );
-  lua_pcall          := GetProcAddr( fLibHandle, 'lua_pcall' );
-  lua_cpcall         := GetProcAddr( fLibHandle, 'lua_cpcall' );
-  lua_load           := GetProcAddr( fLibHandle, 'lua_load' );
-  lua_dump           := GetProcAddr( fLibHandle, 'lua_dump' );
-  lua_yield          := GetProcAddr( fLibHandle, 'lua_yield' );
-  lua_resume         := GetProcAddr( fLibHandle, 'lua_resume' );
-  lua_status         := GetProcAddr( fLibHandle, 'lua_status' );
-  lua_gc             := GetProcAddr( fLibHandle, 'lua_gc' );
-  lua_error          := GetProcAddr( fLibHandle, 'lua_error' );
-  lua_next           := GetProcAddr( fLibHandle, 'lua_next' );
-  lua_concat         := GetProcAddr( fLibHandle, 'lua_concat' );
-  lua_getallocf      := GetProcAddr( fLibHandle, 'lua_getallocf' );
-  lua_setallocf      := GetProcAddr( fLibHandle, 'lua_setallocf' );
-  lua_getstack       := GetProcAddr( fLibHandle, 'lua_getstack' );
-  lua_getinfo        := GetProcAddr( fLibHandle, 'lua_getinfo' );
-  lua_getlocal       := GetProcAddr( fLibHandle, 'lua_getlocal' );
-  lua_setlocal       := GetProcAddr( fLibHandle, 'lua_setlocal' );
-  lua_getupvalue     := GetProcAddr( fLibHandle, 'lua_getupvalue' );
-  lua_setupvalue     := GetProcAddr( fLibHandle, 'lua_setupvalue' );
-  lua_sethook        := GetProcAddr( fLibHandle, 'lua_sethook' );
-  lua_gethook        := GetProcAddr( fLibHandle, 'lua_gethook' );
-  lua_gethookmask    := GetProcAddr( fLibHandle, 'lua_gethookmask' );
-  lua_gethookcount   := GetProcAddr( fLibHandle, 'lua_gethookcount' );
-  luaopen_base       := GetProcAddr( fLibHandle, 'luaopen_base' );
-  luaopen_table      := GetProcAddr( fLibHandle, 'luaopen_table' );
-  luaopen_io         := GetProcAddr( fLibHandle, 'luaopen_io' );
-  luaopen_os         := GetProcAddr( fLibHandle, 'luaopen_os' );
-  luaopen_string     := GetProcAddr( fLibHandle, 'luaopen_string' );
-  luaopen_math       := GetProcAddr( fLibHandle, 'luaopen_math' );
-  luaopen_debug      := GetProcAddr( fLibHandle, 'luaopen_debug' );
-  luaopen_package    := GetProcAddr( fLibHandle, 'luaopen_package' );
-  luaL_openlibs      := GetProcAddr( fLibHandle, 'luaL_openlibs' );
-  luaL_register      := GetProcAddr( fLibHandle, 'luaL_register' );
-  luaL_getmetafield  := GetProcAddr( fLibHandle, 'luaL_getmetafield' );
-  luaL_callmeta      := GetProcAddr( fLibHandle, 'luaL_callmeta' );
-  luaL_typerror      := GetProcAddr( fLibHandle, 'luaL_typerror' );
-  luaL_argerror      := GetProcAddr( fLibHandle, 'luaL_argerror' );
-  luaL_checklstring  := GetProcAddr( fLibHandle, 'luaL_checklstring' );
-  luaL_optlstring    := GetProcAddr( fLibHandle, 'luaL_optlstring' );
-  luaL_checknumber   := GetProcAddr( fLibHandle, 'luaL_checknumber' );
-  luaL_optnumber     := GetProcAddr( fLibHandle, 'luaL_optnumber' );
-  luaL_checkinteger  := GetProcAddr( fLibHandle, 'luaL_checkinteger' );
-  luaL_optinteger    := GetProcAddr( fLibHandle, 'luaL_optinteger' );
-  luaL_checkstack    := GetProcAddr( fLibHandle, 'luaL_checkstack' );
-  luaL_checktype     := GetProcAddr( fLibHandle, 'luaL_checktype' );
-  luaL_checkany      := GetProcAddr( fLibHandle, 'luaL_checkany' );
-  luaL_newmetatable  := GetProcAddr( fLibHandle, 'luaL_newmetatable' );
-  luaL_checkudata    := GetProcAddr( fLibHandle, 'luaL_checkudata' );
-  luaL_where         := GetProcAddr( fLibHandle, 'luaL_where' );
-  luaL_error         := GetProcAddr( fLibHandle, 'luaL_error' );
-  luaL_checkoption   := GetProcAddr( fLibHandle, 'luaL_checkoption' );
-  luaL_ref           := GetProcAddr( fLibHandle, 'luaL_ref' );
-  luaL_unref         := GetProcAddr( fLibHandle, 'luaL_unref' );
-{$ifdef LUA_COMPAT_GETN}
-  luaL_getn          := GetProcAddr( fLibHandle, 'luaL_getn' );
-  luaL_setn          := GetProcAddr( fLibHandle, 'luaL_setn' );
-{$endif}
-  luaL_loadfile      := GetProcAddr( fLibHandle, 'luaL_loadfile' );
-  luaL_loadbuffer    := GetProcAddr( fLibHandle, 'luaL_loadbuffer' );
-  luaL_loadstring    := GetProcAddr( fLibHandle, 'luaL_loadstring' );
-  luaL_newstate      := GetProcAddr( fLibHandle, 'luaL_newstate' );
-  luaL_gsub          := GetProcAddr( fLibHandle, 'luaL_gsub' );
-  luaL_findtable     := GetProcAddr( fLibHandle, 'luaL_findtable' );
-  luaL_buffinit      := GetProcAddr( fLibHandle, 'luaL_buffinit' );
-  luaL_prepbuffer    := GetProcAddr( fLibHandle, 'luaL_prepbuffer' );
-  luaL_addlstring    := GetProcAddr( fLibHandle, 'luaL_addlstring' );
-  luaL_addstring     := GetProcAddr( fLibHandle, 'luaL_addstring' );
-  luaL_addvalue      := GetProcAddr( fLibHandle, 'luaL_addvalue' );
-  luaL_pushresult    := GetProcAddr( fLibHandle, 'luaL_pushresult' );
-
-  Result := fLibHandle;
+  Result := InitializeLuaLib(hlib);
 end;
 
 procedure FreeLuaLib();
@@ -829,10 +835,10 @@ begin
   luaL_addvalue      := nil;
   luaL_pushresult    := nil;
 
-  if fLibHandle <> 0 then begin
-     FreeLibrary( fLibHandle );
-     fLibHandle := 0;
-  end;
+  if fLibLoaded and (fLibHandle <> 0) then FreeLibrary(fLibHandle);
+
+  fLibHandle := 0;
+  fLibLoaded := false;
 end;
 
 {$ifndef LUA_COMPAT_GETN}
@@ -978,12 +984,12 @@ procedure lua_assert(c: Boolean);
 begin
 end;
 
-function lua_number2str(s: Lua_Number; n: Integer): String;
+function lua_number2str(s: Lua_Number; n: Integer): ansistring;
 begin
   Result := FloatToStrF(s, ffFixed, 15, n);
 end;
 
-function lua_str2number(s: String; p: integer): Lua_Number;
+function lua_str2number(s: ansistring; p: integer): Lua_Number;
 begin
   Result := StrToFloat(s);
 end;

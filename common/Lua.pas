@@ -3,7 +3,7 @@ unit Lua;
 interface
 
 uses
-  Classes, SysUtils,
+  windows, classes, sysutils,
   LuaLib;
 
 type
@@ -34,11 +34,14 @@ type
     fStartCount     : integer;
     fRegisterState  : TLuaState;
   public
-    constructor create;
+    constructor create(hLib: HMODULE); 
     destructor  destroy; override;
+
     procedure   StartRegister(ALuaState: TLuaState);
     procedure   RegisterMethod(const AName: ansistring; AMethod: tLuaFunction);
-    function    StopRegister(const ALibName: ansistring): integer;
+    function    StopRegister(const ALibName: ansistring = ''): integer;  // leaves LUA TABLE on lua stack
+
+    procedure   RegisterGlobalMethod(const AName: ansistring; AMethod: tLuaFunction); // register the function immediately
   end;
 
 implementation
@@ -76,14 +79,16 @@ begin add(TFuncProxyObject.Create(AName, AMethod)); end;
 
 { TLuaClass }
 
-constructor TLuaClass.create;
+constructor TLuaClass.create(hLib: HMODULE);
 begin
   inherited create;
   fStartCount:= 0;
   fRegisterState:= nil;
   fFuncs:= TFuncList.create;
 
-  if (not LuaLibLoaded) then LoadLuaLib;
+  if (not LuaLibLoaded) then
+    if (hLib <> 0) then InitializeLuaLib(hLib)
+                   else LoadLuaLib;
 end;
 
 destructor TLuaClass.destroy;
@@ -108,7 +113,7 @@ begin
   result:= 0;
   with ffuncs do
     if count > fStartCount then begin
-      lua_createtable(fRegisterState, count - fStartCount, 0);
+      lua_newtable(fRegisterState);
       for i:= fStartCount to count - 1 do begin
         obj:= TFuncProxyObject(items[i]);
         lua_pushstring(fRegisterState, pAnsiChar(obj.Name));
@@ -118,9 +123,21 @@ begin
         lua_settable(fRegisterState, -3);
         inc(result);
       end;
-      lua_pushvalue(fRegisterState, -1);
-      lua_setglobal(fRegisterState, pAnsiChar(ALibName));
+      if (length(ALibName) > 0) then begin
+        lua_pushvalue(fRegisterState, -1);
+        lua_setglobal(fRegisterState, pAnsiChar(ALibName));
+      end;
     end;
+end;
+
+procedure TLuaClass.RegisterGlobalMethod(const AName: ansistring; AMethod: tLuaFunction);
+begin
+  if assigned(AMethod) then begin
+    lua_pushlightuserdata(fRegisterState, TMethod(AMethod).Data);
+    lua_pushlightuserdata(fRegisterState, TMethod(AMethod).Code);
+    lua_pushcclosure(fRegisterState, LuaProxyFunction, 2);
+  end else lua_pushnil(fRegisterState);
+  lua_setglobal(fRegisterState, pAnsiChar(AName));
 end;
 
 end.

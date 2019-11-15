@@ -23,7 +23,7 @@ type  tLuaQuikResources      = class;
       protected
         function    GetQUIKResources(LuaState: TLuaState): THandle;
       public
-        constructor create;
+        constructor create(hLib: HMODULE);
 
         // LUA functions
         function    get_quik_handle(LuaState: TLuaState): integer;
@@ -48,9 +48,9 @@ const quik_resources_instance: tLuaQuikResources = nil;
 
 { tLuaQuikResources }
 
-constructor tLuaQuikResources.create;
+constructor tLuaQuikResources.create(hLib: HMODULE);
 begin
-  inherited create;
+  inherited create(hLib);
   fQUIKWnd:= 0;
   fResHndl:= 0;
 end;
@@ -133,38 +133,40 @@ end;
 
 { initialization functions }
 
-function initialize_lua_library: boolean;
-var path : ansistring;
-    i    : integer;
+function initialize_lua_library: HMODULE;
+var i    : integer;
 begin
-  result:= false;
-  path := IncludeTrailingBackslash(extractfilepath(GetModuleName(0)));
+  result:= 0;
   i:= low(lua_supported_libs);
-  while not result and (i <= high(lua_supported_libs)) do begin
-    result:= FileExists(path + lua_supported_libs[i]);
-    if result then SetLuaLibFileName(path + lua_supported_libs[i]);
-    inc(i);
+  while (i <= high(lua_supported_libs)) do begin
+    result:= GetModuleHandle(pAnsiChar(lua_supported_libs[i]));
+    if (result <> 0) then i:= high(lua_supported_libs) + 1
+                     else inc(i);
   end;
 end;
 
 function initialize_quik_resources(ALuaInstance: Lua_State): integer;
+var hLib : HMODULE;
 begin
   result:= 0;
-  if not assigned(quik_resources_instance) and initialize_lua_library() then begin
-    quik_resources_instance:= tLuaQuikResources.Create;
-    with quik_resources_instance do begin
-      StartRegister(ALuaInstance);
-      // register adapter functions
-      RegisterMethod('get_quik_handle', get_quik_handle);
-      RegisterMethod('get_menu_state', get_menu_state);
-      RegisterMethod('get_dlg_title', get_dlg_title);
-      RegisterMethod('set_dlg_item_text', set_dlg_item_text);
-      RegisterMethod('post_message', post_message);
-      RegisterMethod('send_message', send_message);
-      RegisterMethod('get_child_handle', get_child_handle);
-      result:= StopRegister(package_name);
-    end;
-  end else messagebox(0, pAnsiChar(format('ERROR: failed to find LUA library: %s', [lua_supported_libs[0]])), 'Error', 0);
+  if not assigned(quik_resources_instance) then begin
+    hLib:= initialize_lua_library;
+    if (hLib <> 0) then begin
+      quik_resources_instance:= tLuaQuikResources.Create(hLib);
+      with quik_resources_instance do begin
+        StartRegister(ALuaInstance);
+        // register adapter functions
+        RegisterMethod('get_quik_handle', get_quik_handle);
+        RegisterMethod('get_menu_state', get_menu_state);
+        RegisterMethod('get_dlg_title', get_dlg_title);
+        RegisterMethod('set_dlg_item_text', set_dlg_item_text);
+        RegisterMethod('post_message', post_message);
+        RegisterMethod('send_message', send_message);
+        RegisterMethod('get_child_handle', get_child_handle);
+        result:= StopRegister(package_name);
+      end;
+    end else messagebox(0, pAnsiChar(format('ERROR: failed to find LUA library: %s', [lua_supported_libs[0]])), 'Error', 0);
+  end;
   result:= min(result, 1);
 end;
 
