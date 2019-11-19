@@ -135,6 +135,8 @@ type  TLuaState          = Lua_State;
       private
         fFuncs          : TFuncList;
         fStartCount     : integer;
+      protected
+        procedure   PushMethod(ALuaState: TLuaState; AMethod: tLuaFunction);
       public
         constructor create(hLib: HMODULE; const ALibName: ansistring = '');
         destructor  destroy; override;
@@ -693,7 +695,7 @@ begin
   inherited create;
   fStartCount:= 0;
   fFuncs:= TFuncList.create;
-  
+
   if (not LuaLibLoaded) then
     if (hLib <> 0) then InitializeLuaLib(hLib)
                    else LoadLuaLib(ALibName);
@@ -705,36 +707,46 @@ begin
   inherited destroy;
 end;
 
+procedure TLuaClass.PushMethod(ALuaState: TLuaState; AMethod: tLuaFunction);
+begin
+  lua_pushlightuserdata(ALuaState, TMethod(AMethod).Data);
+  lua_pushlightuserdata(ALuaState, TMethod(AMethod).Code);
+  lua_pushcclosure(ALuaState, LuaProxyFunction, 2);
+end;
+
 procedure TLuaClass.StartRegister;
 begin fStartCount:= fFuncs.Count; end;
 
 procedure TLuaClass.RegisterMethod(const AName: ansistring; AMethod: tLuaFunction);
-begin ffuncs.RegisterMethod(AName, AMethod); end;
+begin fFuncs.RegisterMethod(AName, AMethod); end;
 
 function TLuaClass.StopRegister(ALuaState: TLuaState; const ALibName: ansistring; aleave_table: boolean): integer;
 var i   : integer;
     obj : TFuncProxyObject;
 begin
   result:= 0;
-  if assigned(ALuaState) then with ffuncs do
-    if count > fStartCount then begin
-      lua_newtable(ALuaState);
-      for i:= fStartCount to count - 1 do begin
-        obj:= TFuncProxyObject(items[i]);
-        lua_pushstring(ALuaState, pAnsiChar(obj.Name));
-        lua_pushlightuserdata(ALuaState, TMethod(obj.Method).Data);
-        lua_pushlightuserdata(ALuaState, TMethod(obj.Method).Code);
-        lua_pushcclosure(ALuaState, LuaProxyFunction, 2);
-        lua_settable(ALuaState, -3);
-        inc(result);
+  if assigned(ALuaState) then
+    with fFuncs do try
+      if count > fStartCount then begin
+        lua_newtable(ALuaState);
+        for i:= fStartCount to count - 1 do begin
+          obj:= TFuncProxyObject(items[i]);
+          lua_pushstring(ALuaState, pAnsiChar(obj.Name));
+          lua_pushlightuserdata(ALuaState, TMethod(obj.Method).Data);
+          lua_pushlightuserdata(ALuaState, TMethod(obj.Method).Code);
+          lua_pushcclosure(ALuaState, LuaProxyFunction, 2);
+          lua_settable(ALuaState, -3);
+          inc(result);
+        end;
+        if (length(ALibName) > 0) then begin
+          lua_pushvalue(ALuaState, -1);
+          lua_setglobal(ALuaState, pAnsiChar(ALibName));
+        end;
+        if not aleave_table then lua_pop(ALuaState, 1);
       end;
-      if (length(ALibName) > 0) then begin
-        lua_pushvalue(ALuaState, -1);
-        lua_setglobal(ALuaState, pAnsiChar(ALibName));
-      end;
-      if not aleave_table then lua_pop(ALuaState, 1);
-    end;
+    finally clear; end;
 end;
+
 
 procedure TLuaClass.RegisterGlobalMethod(ALuaState: TLuaState; const AName: ansistring; AMethod: tLuaFunction);
 begin

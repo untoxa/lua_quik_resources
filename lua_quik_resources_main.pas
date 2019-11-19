@@ -139,22 +139,22 @@ begin
   result:= 0;
   if not assigned(quik_resources_instance) then begin
     hLib:= initialize_lua_library;
-    if (hLib <> 0) then begin
-      quik_resources_instance:= tLuaQuikResources.Create(hLib);
-      with quik_resources_instance do begin
-        StartRegister;
-        // register adapter functions
-        RegisterMethod('get_quik_handle', get_quik_handle);
-        RegisterMethod('get_menu_state', get_menu_state);
-        RegisterMethod('get_dlg_title', get_dlg_title);
-        RegisterMethod('set_dlg_item_text', set_dlg_item_text);
-        RegisterMethod('post_message', post_message);
-        RegisterMethod('send_message', send_message);
-        RegisterMethod('get_child_handle', get_child_handle);
-        result:= StopRegister(ALuaInstance, package_name);
-      end;
-    end else messagebox(0, pAnsiChar(format('ERROR: failed to find LUA library: %s', [lua_supported_libs[0]])), 'Error', 0);
+    if (hLib <> 0) then quik_resources_instance:= tLuaQuikResources.Create(hLib)
+                   else messagebox(0, pAnsiChar(format('ERROR: failed to find LUA library: %s', [lua_supported_libs[0]])), 'Error', 0);
   end;
+  if assigned(quik_resources_instance) then
+    with quik_resources_instance do begin
+      StartRegister;
+      // register adapter functions
+      RegisterMethod('get_quik_handle', get_quik_handle);
+      RegisterMethod('get_menu_state', get_menu_state);
+      RegisterMethod('get_dlg_title', get_dlg_title);
+      RegisterMethod('set_dlg_item_text', set_dlg_item_text);
+      RegisterMethod('post_message', post_message);
+      RegisterMethod('send_message', send_message);
+      RegisterMethod('get_child_handle', get_child_handle);
+      result:= StopRegister(ALuaInstance, package_name);
+    end;
   result:= min(result, 1);
 end;
 
