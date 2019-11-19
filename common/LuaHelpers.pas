@@ -2,133 +2,153 @@ unit LuaHelpers;
 
 interface
 
-uses
-  Classes, SysUtils,
-  LuaLib;
+uses  windows, classes, sysutils,
+      LuaLib;
 
-const
-  LUA_TANY      = LUA_TNONE;
+const LUA_TANY           = LUA_TNONE;
 
-const
-  LIST_KEYVALUE = true;
-  LIST_STRINGS  = false;
-  
-type
-  TLuaState     = LuaLib.lua_State;
+const LIST_KEYVALUE      = true;
+      LIST_STRINGS       = false;
 
-  TLuaContext   = class;
-  TLuaTable     = class;
+type  TLuaState          = Lua_State;
 
-  TLuaField     = class(tObject)
-  private
-    fContext    : TLuaContext;
-    fFieldType  : integer;
-    fNumber     : double;
-    fBool       : boolean;
-    fString     : ansistring;
-    fTable      : TLuaTable;
-    fIndex      : integer;
+      TLuaContext        = class;
+      TLuaTable          = class;
 
-    function    getabsindex(AIndex: integer): integer;
-    function    fExtractField(AIndex: integer): TLuaField;
-    function    fGetField(AIndex: integer; const AName: ansistring): TLuaField;
-  public
-    constructor create(AContext: TLuaContext);
-    destructor  destroy; override;
-    function    AsBoolean(const adefault: boolean = false): boolean;
-    function    AsInteger(const adefault: int64 = 0): int64;
-    function    AsNumber(const adefault: double = 0.0): double;
-    function    AsString(const adefault: ansistring = ''): ansistring;
-    function    AsTable: TLuaTable;
+      TLuaField          = class(tObject)
+      private
+        fContext         : TLuaContext;
+        fFieldType       : integer;
+        fNumber          : double;
+        fBool            : boolean;
+        fString          : ansistring;
+        fTable           : TLuaTable;
+        fIndex           : integer;
 
-    function    IsFunction: boolean;
-    function    IsTable: boolean;
+        function    getabsindex(AIndex: integer): integer;
+        function    fExtractField(AIndex: integer): TLuaField;
+        function    fGetField(AIndex: integer; const AName: ansistring): TLuaField;
+      public
+        constructor create(AContext: TLuaContext);
+        destructor  destroy; override;
+        function    AsBoolean(const adefault: boolean = false): boolean;
+        function    AsInteger(const adefault: int64 = 0): int64;
+        function    AsNumber(const adefault: double = 0.0): double;
+        function    AsString(const adefault: ansistring = ''): ansistring;
+        function    AsTable: TLuaTable;
 
-    property    FieldType: integer read fFieldType;
-    property    FieldByName[AIndex: integer; const AName: ansistring]: TLuaField read fGetField; default;
-  end;
+        function    IsFunction: boolean;
+        function    IsTable: boolean;
 
-  TLuaTable     = class(tObject)
-  private
-    fContext    : TLuaContext;
-    fField      : TLuaField;
-    fIndex      : integer;
-    fPopSize    : integer;
-    fCurField   : TLuaField;
-    fStackAlloc : boolean;
+        property    FieldType: integer read fFieldType;
+        property    FieldByName[AIndex: integer; const AName: ansistring]: TLuaField read fGetField; default;
+      end;
 
-    function    getabsindex(AIndex: integer): integer;
-    procedure   fSetIndex(AIndex: integer);
-    function    fGetFieldByName(const AName: ansistring): TLuaField;
-    function    fGetField: TLuaField;
-    function    fGetSelf: TLuaTable;
-  protected
-    property    Field: TLuaField read fGetField;
-  public
-    constructor create(AContext: TLuaContext); overload;
-    constructor create(AContext: TLuaContext; AIndex: integer); overload;
-    constructor create(AContext: TLuaContext; ALuaTable: TLuaTable; const AName: ansistring); overload;
-    constructor create(AContext: TLuaContext; const AGlobalName: ansistring); overload;
-    destructor  destroy; override;
+      TLuaTable          = class(tObject)
+      private
+        fContext         : TLuaContext;
+        fField           : TLuaField;
+        fIndex           : integer;
+        fPopSize         : integer;
+        fCurField        : TLuaField;
+        fStackAlloc      : boolean;
 
-    function    FindFirst: boolean;
-    function    FindNext: boolean;
-    procedure   FindClose;
+        function    getabsindex(AIndex: integer): integer;
+        procedure   fSetIndex(AIndex: integer);
+        function    fGetFieldByName(const AName: ansistring): TLuaField;
+        function    fGetField: TLuaField;
+        function    fGetSelf: TLuaTable;
+      protected
+        property    Field: TLuaField read fGetField;
+      public
+        constructor create(AContext: TLuaContext); overload;
+        constructor create(AContext: TLuaContext; AIndex: integer); overload;
+        constructor create(AContext: TLuaContext; ALuaTable: TLuaTable; const AName: ansistring); overload;
+        constructor create(AContext: TLuaContext; const AGlobalName: ansistring); overload;
+        destructor  destroy; override;
 
-    function    FindField(const AName: ansistring): boolean;
+        function    FindFirst: boolean;
+        function    FindNext: boolean;
+        procedure   FindClose;
 
-    function    CallMethodSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring; AResType: integer = LUA_TNONE): boolean;
+        function    FindField(const AName: ansistring): boolean;
 
-    property    CurrentTable: TLuaTable read fGetSelf;
-    property    Index: integer read fIndex write fSetIndex;
-    property    FieldByName[const AName: ansistring]: TLuaField read fGetFieldByName; default;
-    property    CurrentField: TLuaField read fCurField;
-    property    Context: TLuaContext read fContext;
-  end;
+        function    CallMethodSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring; AResType: integer = LUA_TNONE): boolean;
 
-  TLuaContext   = class(tObject)
-  private
-    fLuaState   : TLuaState;
-    fField      : TLuaField;
-    function    fGetStackByIndex(AIndex: integer): TLuaField;
-    function    fGetGlobalByName(const AName: ansistring): TLuaField;
-    function    fGetSelf: TLuaContext;
-  public
-    constructor create(ALuaState: TLuaState);
-    destructor  destroy; override;
+        property    CurrentTable: TLuaTable read fGetSelf;
+        property    Index: integer read fIndex write fSetIndex;
+        property    FieldByName[const AName: ansistring]: TLuaField read fGetFieldByName; default;
+        property    CurrentField: TLuaField read fCurField;
+        property    Context: TLuaContext read fContext;
+      end;
 
-    procedure   SetLuaState(ALuaState: TLuaState);
+      TLuaContext        = class(tObject)
+      private
+        fLuaState        : TLuaState;
+        fField           : TLuaField;
+        function    fGetStackByIndex(AIndex: integer): TLuaField;
+        function    fGetGlobalByName(const AName: ansistring): TLuaField;
+        function    fGetSelf: TLuaContext;
+      public
+        constructor create(ALuaState: TLuaState);
+        destructor  destroy; override;
 
-    function    PushArgs(const aargs: array of const; avalueslist: boolean): integer; overload;
-    function    PushArgs(const aargs: array of const): integer; overload;
-    function    PushArgs(aargs: tStringList): integer; overload;
+        procedure   SetLuaState(ALuaState: TLuaState);
 
-    function    PushTable(aKVTable: tStringList; avalueslist: boolean): integer; overload;
-    function    PushTable(const aargs: array of const): integer; overload;  // aargs must look like: ['name1', value1, 'name2', value2]
+        function    PushArgs(const aargs: array of const; avalueslist: boolean): integer; overload;
+        function    PushArgs(const aargs: array of const): integer; overload;
+        function    PushArgs(aargs: tStringList): integer; overload;
 
-    function    Call(const AName: ansistring; const AArgs: array of const; AResCount: integer; AResType: integer = LUA_TANY): boolean;
+        function    PushTable(aKVTable: tStringList; avalueslist: boolean): integer; overload;
+        function    PushTable(const aargs: array of const): integer; overload;  // aargs must look like: ['name1', value1, 'name2', value2]
 
-    function    CallSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring; AResType: integer): boolean; overload;
-    function    CallSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring): boolean; overload;
-    function    CallSafe(const AName: ansistring; aargs: tStringList; AResCount: integer; var error: ansistring; AResType: integer): boolean; overload;
-    function    CallSafe(const AName: ansistring; aargs: tStringList; AResCount: integer; var error: ansistring): boolean; overload;
+        function    Call(const AName: ansistring; const AArgs: array of const; AResCount: integer; AResType: integer = LUA_TANY): boolean;
 
-    function    ExecuteSafe(const AScript: ansistring; AResCount: integer; var error: ansistring): boolean;
+        function    CallSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring; AResType: integer): boolean; overload;
+        function    CallSafe(const AName: ansistring; const AArgs: array of const; AResCount: integer; var error: ansistring): boolean; overload;
+        function    CallSafe(const AName: ansistring; aargs: tStringList; AResCount: integer; var error: ansistring; AResType: integer): boolean; overload;
+        function    CallSafe(const AName: ansistring; aargs: tStringList; AResCount: integer; var error: ansistring): boolean; overload;
 
-    procedure   CleanUp(ACount: integer);
+        function    ExecuteSafe(const AScript: ansistring; AResCount: integer; var error: ansistring): boolean;
 
-    procedure   SetGlobal(AIndex: integer; const AName: ansistring);
-    procedure   ResetGlobal(const AName: ansistring);
+        procedure   CleanUp(ACount: integer);
 
-    property    CurrentContext: TLuaContext read fGetSelf;
-    property    CurrentState: TLuaState read fLuaState;
-    property    Stack[AIndex: integer]: TLuaField read fGetStackByIndex; default;
-    property    Globals[const AName: ansistring]: TLuaField read fGetGlobalByName;
-  end;
+        procedure   SetGlobal(AIndex: integer; const AName: ansistring);
+        procedure   ResetGlobal(const AName: ansistring);
 
-  TOnTableItemEx = function(ATable: TLuaTable): boolean of object;
+        property    CurrentContext: TLuaContext read fGetSelf;
+        property    CurrentState: TLuaState read fLuaState;
+        property    Stack[AIndex: integer]: TLuaField read fGetStackByIndex; default;
+        property    Globals[const AName: ansistring]: TLuaField read fGetGlobalByName;
+      end;
+
+      TOnTableItemEx     = function(ATable: TLuaTable): boolean of object;
+      TLuaFunction       = function(AContext: TLuaContext): integer of object;
+
+      TFuncList          = class(TList)
+      protected
+        procedure   Notify(Ptr: Pointer; Action: TListNotification); override;
+        procedure   RegisterMethod(const AName: ansistring; AMethod: tLuaFunction);
+      end;
+
+      TLuaClass         = class(TObject)
+      private
+        fFuncs          : TFuncList;
+        fStartCount     : integer;
+      public
+        constructor create(hLib: HMODULE; const ALibName: ansistring = '');
+        destructor  destroy; override;
+
+        procedure   StartRegister;
+        procedure   RegisterMethod(const AName: ansistring; AMethod: tLuaFunction);
+        function    StopRegister(ALuaState: TLuaState; const ALibName: ansistring; aleave_table: boolean = false): integer;
+
+        procedure   RegisterGlobalMethod(ALuaState: TLuaState; const AName: ansistring; AMethod: tLuaFunction);
+      end;
 
 implementation
+
+{ misc functions }
 
 function  StrToFloatDef(const astr: ansistring; adef: extended): extended;
 begin if not TextToFloat(pAnsiChar(astr), result, fvExtended) then result:= adef; end;
@@ -618,6 +638,114 @@ procedure TLuaContext.ResetGlobal(const AName: ansistring);
 begin
   lua_pushnil(fLuaState);
   lua_setglobal(fLuaState, pAnsiChar(AName));
+end;
+
+{ TFuncProxyObject }
+
+type  TFuncProxyObject   = class(TObject)
+      private
+        FName            : ansistring;
+        FMethod          : tLuaFunction;
+      public
+        constructor Create(const AName: ansistring; AMethod: tLuaFunction); reintroduce;
+        function    Call(astate: TLuaState): integer;
+
+        property    Name: ansistring read FName;
+        property    Method: tLuaFunction read FMethod;
+      end;
+
+constructor TFuncProxyObject.Create(const AName: ansistring; AMethod: tLuaFunction);
+begin
+  inherited create;
+  fname:= aname;
+  fmethod:= amethod;
+end;
+
+function TFuncProxyObject.Call(astate: TLuaState): integer;
+begin if assigned(FMethod) then result:= FMethod(astate) else result:= 0; end;
+
+{ LuaProxyFunction }
+
+function LuaProxyFunction(astate: Lua_State): Integer; cdecl;
+var func: tLuaFunction;
+begin
+  TMethod(func).Data:= lua_topointer(astate, lua_upvalueindex(1));
+  TMethod(func).Code:= lua_topointer(astate, lua_upvalueindex(2));
+  if assigned(func) then begin
+    with TLuaContext.create(astate) do try
+      result:= func(CurrentContext);
+    finally free; end;
+  end else result:= 0;
+end;
+
+{ TFuncList }
+
+procedure TFuncList.Notify(Ptr: Pointer; Action: TListNotification);
+begin if (Action = lnDeleted) and assigned(Ptr) then TFuncProxyObject(Ptr).free; end;
+
+procedure TFuncList.RegisterMethod(const AName: ansistring; AMethod: tLuaFunction);
+begin add(TFuncProxyObject.Create(AName, AMethod)); end;
+
+{ TLuaClass }
+
+constructor TLuaClass.create(hLib: HMODULE; const ALibName: ansistring);
+begin
+  inherited create;
+  fStartCount:= 0;
+  fFuncs:= TFuncList.create;
+  
+  if (not LuaLibLoaded) then
+    if (hLib <> 0) then InitializeLuaLib(hLib)
+                   else LoadLuaLib(ALibName);
+end;
+
+destructor TLuaClass.destroy;
+begin
+  if assigned(fFuncs) then freeandnil(fFuncs);
+  inherited destroy;
+end;
+
+procedure TLuaClass.StartRegister;
+begin fStartCount:= fFuncs.Count; end;
+
+procedure TLuaClass.RegisterMethod(const AName: ansistring; AMethod: tLuaFunction);
+begin ffuncs.RegisterMethod(AName, AMethod); end;
+
+function TLuaClass.StopRegister(ALuaState: TLuaState; const ALibName: ansistring; aleave_table: boolean): integer;
+var i   : integer;
+    obj : TFuncProxyObject;
+begin
+  result:= 0;
+  if assigned(ALuaState) then with ffuncs do
+    if count > fStartCount then begin
+      lua_newtable(ALuaState);
+      for i:= fStartCount to count - 1 do begin
+        obj:= TFuncProxyObject(items[i]);
+        lua_pushstring(ALuaState, pAnsiChar(obj.Name));
+        lua_pushlightuserdata(ALuaState, TMethod(obj.Method).Data);
+        lua_pushlightuserdata(ALuaState, TMethod(obj.Method).Code);
+        lua_pushcclosure(ALuaState, LuaProxyFunction, 2);
+        lua_settable(ALuaState, -3);
+        inc(result);
+      end;
+      if (length(ALibName) > 0) then begin
+        lua_pushvalue(ALuaState, -1);
+        lua_setglobal(ALuaState, pAnsiChar(ALibName));
+      end;
+      if not aleave_table then lua_pop(ALuaState, 1);
+    end;
+end;
+
+procedure TLuaClass.RegisterGlobalMethod(ALuaState: TLuaState; const AName: ansistring; AMethod: tLuaFunction);
+begin
+  if assigned(ALuaState) then begin
+    if assigned(AMethod) then begin
+      lua_pushlightuserdata(ALuaState, TMethod(AMethod).Data);
+      lua_pushlightuserdata(ALuaState, TMethod(AMethod).Code);
+      lua_pushcclosure(ALuaState, LuaProxyFunction, 2);
+    end else lua_pushnil(ALuaState);
+    lua_setglobal(ALuaState, pAnsiChar(AName));
+  end;
 end;
 
 end.

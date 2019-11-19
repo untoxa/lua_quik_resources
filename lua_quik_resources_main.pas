@@ -5,12 +5,12 @@ unit lua_quik_resources_main;
 interface
 
 uses  windows, classes, sysutils, math,
-      Lua, LuaLib, LuaHelpers,
+      LuaLib, LuaHelpers,
       lua_quik_resources_utils;
 
 const package_name       = 'quik_resources';
 
-const lua_supported_libs : array[0..1] of ansistring = ('Lua5.1.dll', 'qlua.dll');
+const lua_supported_libs : array[0..1] of pAnsiChar = ('Lua5.1.dll', 'qlua.dll');
 
 type  tLuaQuikResources      = class;
 
@@ -21,21 +21,21 @@ type  tLuaQuikResources      = class;
         
         function    fGetQuikHandle: HWND;
       protected
-        function    GetQUIKResources(LuaState: TLuaState): THandle;
+        function    GetQUIKResources(AContext: TLuaContext): THandle;
       public
         constructor create(hLib: HMODULE);
 
         // LUA functions
-        function    get_quik_handle(LuaState: TLuaState): integer;
-        function    get_menu_state(LuaState: TLuaState): integer;
+        function    get_quik_handle(AContext: TLuaContext): integer;
+        function    get_menu_state(AContext: TLuaContext): integer;
 
-        function    get_dlg_title(LuaState: TLuaState): integer;
-        function    set_dlg_item_text(LuaState: TLuaState): integer;
+        function    get_dlg_title(AContext: TLuaContext): integer;
+        function    set_dlg_item_text(AContext: TLuaContext): integer;
 
-        function    post_message(LuaState: TLuaState): integer;
-        function    send_message(LuaState: TLuaState): integer;
+        function    post_message(AContext: TLuaContext): integer;
+        function    send_message(AContext: TLuaContext): integer;
 
-        function    get_child_handle(LuaState: TLuaState): integer;
+        function    get_child_handle(AContext: TLuaContext): integer;
 
         property    QUIKHandle: HWND read fGetQuikHandle;
       end;
@@ -61,74 +61,62 @@ begin
   result:= fQUIKWnd;
 end;
 
-function tLuaQuikResources.GetQUIKResources(LuaState: TLuaState): THandle;
+function tLuaQuikResources.GetQUIKResources(AContext: TLuaContext): THandle;
 const resources_library_name = 'lang_res.dll';
 var   res_lib_name : ansistring;
 begin
-  if (fResHndl = 0) then
-    with TLuaContext.create(LuaState) do try
-      res_lib_name:= Globals['quik_resources_lib'].AsString(resources_library_name);
-      fResHndl:= GetModuleHandleA(pAnsiChar(res_lib_name));
-    finally free; end;
+  if (fResHndl = 0) then begin
+    with AContext do res_lib_name:= Globals['quik_resources_lib'].AsString(resources_library_name);
+    fResHndl:= GetModuleHandleA(pAnsiChar(res_lib_name));
+  end;
   result:= fResHndl;
 end;
 
-function tLuaQuikResources.get_quik_handle(LuaState: TLuaState): integer;
+function tLuaQuikResources.get_quik_handle(AContext: TLuaContext): integer;
 begin
-  with TLuaContext.create(LuaState) do try
-    PushArgs([int64(QUIKHandle)]);
-    result:= 1;
-  finally free; end;
+  with AContext do
+    result:= PushArgs([int64(QUIKHandle)]);
 end;
 
-function tLuaQuikResources.get_menu_state(LuaState: TLuaState): integer;
+function tLuaQuikResources.get_menu_state(AContext: TLuaContext): integer;
 begin
-  with TLuaContext.create(LuaState) do try
-    PushArgs([GetMenuItemState(Stack[1].AsInteger, Stack[2].AsInteger)]);
-    result:= 1;
-  finally free; end;
+  with AContext do
+    result:= PushArgs([GetMenuItemState(Stack[1].AsInteger, Stack[2].AsInteger)]);
 end;
 
-function tLuaQuikResources.get_dlg_title(LuaState: TLuaState): integer;
+function tLuaQuikResources.get_dlg_title(AContext: TLuaContext): integer;
 begin
-  with TLuaContext.create(LuaState) do try
-    PushArgs([GetDialogTitleFromResource(GetQUIKResources(LuaState), QUIKHandle, WORD(Stack[1].AsInteger))]);
-    result:= 1;
-  finally free; end;
+  with AContext do
+    result:= PushArgs([GetDialogTitleFromResource(GetQUIKResources(AContext), QUIKHandle, WORD(Stack[1].AsInteger))]);
 end;
 
-function tLuaQuikResources.set_dlg_item_text(LuaState: TLuaState): integer;
+function tLuaQuikResources.set_dlg_item_text(AContext: TLuaContext): integer;
 var wnd : HWND;
 begin
-  with TLuaContext.create(LuaState) do try
+  with AContext do begin
     wnd:= HWND(Stack[1].AsInteger);
     if (wnd <> 0) then SetDlgItemTextA(wnd, Stack[2].AsInteger, pAnsiChar(Stack[3].AsString));
-    result:= 0;
-  finally free; end;
+  end;
+  result:= 0;
 end;
 
-function tLuaQuikResources.post_message(LuaState: TLuaState): integer;
+function tLuaQuikResources.post_message(AContext: TLuaContext): integer;
 begin
-  with TLuaContext.create(LuaState) do try
+  with AContext do
     PostMessageA(HWND(Stack[1].AsInteger), WPARAM(Stack[2].AsInteger), WPARAM(Stack[3].AsInteger), LPARAM(Stack[4].AsInteger));
-    result:= 0;
-  finally free; end;
+  result:= 0;
 end;
 
-function tLuaQuikResources.send_message(LuaState: TLuaState): integer;
+function tLuaQuikResources.send_message(AContext: TLuaContext): integer;
 begin
-  with TLuaContext.create(LuaState) do try
-    PushArgs([SendMessageA(HWND(Stack[1].AsInteger), WPARAM(Stack[2].AsInteger), WPARAM(Stack[3].AsInteger), LPARAM(Stack[4].AsInteger))]);
-    result:= 1;
-  finally free; end;
+  with AContext do
+    result:= PushArgs([SendMessageA(HWND(Stack[1].AsInteger), WPARAM(Stack[2].AsInteger), WPARAM(Stack[3].AsInteger), LPARAM(Stack[4].AsInteger))]);
 end;
 
-function tLuaQuikResources.get_child_handle(LuaState: TLuaState): integer;
+function tLuaQuikResources.get_child_handle(AContext: TLuaContext): integer;
 begin
-  with TLuaContext.create(LuaState) do try
-    PushArgs([int64(get_quik_child_window(HWND(Stack[1].AsInteger), Stack[2].AsString))]);
-    result:= 1;
-  finally free; end;
+  with AContext do
+    result:= PushArgs([int64(get_quik_child_window(HWND(Stack[1].AsInteger), Stack[2].AsString))]);
 end;
 
 { initialization functions }
@@ -139,7 +127,7 @@ begin
   result:= 0;
   i:= low(lua_supported_libs);
   while (i <= high(lua_supported_libs)) do begin
-    result:= GetModuleHandle(pAnsiChar(lua_supported_libs[i]));
+    result:= GetModuleHandle(lua_supported_libs[i]);
     if (result <> 0) then i:= high(lua_supported_libs) + 1
                      else inc(i);
   end;
@@ -154,7 +142,7 @@ begin
     if (hLib <> 0) then begin
       quik_resources_instance:= tLuaQuikResources.Create(hLib);
       with quik_resources_instance do begin
-        StartRegister(ALuaInstance);
+        StartRegister;
         // register adapter functions
         RegisterMethod('get_quik_handle', get_quik_handle);
         RegisterMethod('get_menu_state', get_menu_state);
@@ -163,7 +151,7 @@ begin
         RegisterMethod('post_message', post_message);
         RegisterMethod('send_message', send_message);
         RegisterMethod('get_child_handle', get_child_handle);
-        result:= StopRegister(package_name);
+        result:= StopRegister(ALuaInstance, package_name);
       end;
     end else messagebox(0, pAnsiChar(format('ERROR: failed to find LUA library: %s', [lua_supported_libs[0]])), 'Error', 0);
   end;
