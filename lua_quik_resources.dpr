@@ -8,10 +8,10 @@ uses  sysutils,
 
 {$R *.res}
 
-function luaopen_quik_resources(ALuaInstance: Lua_State): longint; cdecl;
+function luaopen_lua_quik_resources(ALuaInstance: Lua_State): longint; cdecl;
 begin result:= initialize_quik_resources(ALuaInstance); end;
 
-exports  luaopen_quik_resources;
+exports  luaopen_lua_quik_resources name 'luaopen_lua_quik_resources';
 
 begin
   IsMultiThread:= true;

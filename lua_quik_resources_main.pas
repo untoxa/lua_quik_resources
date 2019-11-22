@@ -153,7 +153,7 @@ begin
       RegisterMethod('post_message', post_message);
       RegisterMethod('send_message', send_message);
       RegisterMethod('get_child_handle', get_child_handle);
-      result:= StopRegister(ALuaInstance, package_name);
+      result:= StopRegister(ALuaInstance, package_name, true);
     end;
   result:= min(result, 1);
 end;

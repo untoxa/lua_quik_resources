@@ -1,5 +1,5 @@
-package.cpath = getScriptPath() .. "\\lua_quik_resources.dll"
-qres = require "quik_resources"
+package.cpath = getScriptPath() .. "/?.dll"
+qres = require "lua_quik_resources"
 
 function main()  
   quik_resources_lib = "lang_rus.dll"
