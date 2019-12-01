@@ -95,6 +95,8 @@ type  TLuaState          = Lua_State;
 
         procedure   SetLuaState(ALuaState: TLuaState);
 
+        function    StackSize: longint;
+
         function    PushArgs(const aargs: array of const; avalueslist: boolean): integer; overload;
         function    PushArgs(const aargs: array of const): integer; overload;
         function    PushArgs(aargs: tStringList): integer; overload;
@@ -110,6 +112,8 @@ type  TLuaState          = Lua_State;
         function    CallSafe(const AName: ansistring; aargs: tStringList; AResCount: integer; var error: ansistring): boolean; overload;
 
         function    ExecuteSafe(const AScript: ansistring; AResCount: integer; var error: ansistring): boolean;
+
+        function    ExecuteFileSafe(const AFileName: ansistring; AResCount: integer; var error: ansistring): boolean;
 
         procedure   CleanUp(ACount: integer);
 
@@ -135,6 +139,8 @@ type  TLuaState          = Lua_State;
       private
         fFuncs          : TFuncList;
         fStartCount     : integer;
+
+        function    fGetSelf: TLuaClass;
       protected
         procedure   PushMethod(ALuaState: TLuaState; AMethod: tLuaFunction);
       public
@@ -146,6 +152,8 @@ type  TLuaState          = Lua_State;
         function    StopRegister(ALuaState: TLuaState; const ALibName: ansistring; aleave_table: boolean = false): integer;
 
         procedure   RegisterGlobalMethod(ALuaState: TLuaState; const AName: ansistring; AMethod: tLuaFunction);
+
+        property    CurrentLuaClass: TLuaClass read fGetSelf;
       end;
 
 implementation
@@ -437,6 +445,9 @@ end;
 procedure TLuaContext.SetLuaState(ALuaState: TLuaState);
 begin fLuaState:= ALuaState; end;
 
+function TLuaContext.StackSize: longint;
+begin result:= lua_gettop(fLuaState); end;
+
 function TLuaContext.fGetStackByIndex(AIndex: integer): TLuaField;
 begin
   if not assigned(fField) then fField:= TLuaField.create(Self);
@@ -627,6 +638,21 @@ begin
   end else error:= 'Script loading failed';
 end;
 
+function TLuaContext.ExecuteFileSafe(const AFileName: ansistring; AResCount: integer; var error: ansistring): boolean;
+var len: cardinal;
+begin
+  result:= (luaL_loadfile(fLuaState, pAnsiChar(AFileName)) = 0);
+  if result then begin
+    result:= (lua_pcall(fLuaState, 0, AResCount, 0) = 0);
+    if not result then begin
+      len:= 0;
+      SetString(error, lua_tolstring(fLuaState, -1, len), len);
+      lua_pop(fLuaState, 1);
+      result:= false;
+    end;
+  end else error:= 'Script loading failed';
+end;
+
 procedure TLuaContext.CleanUp(ACount: integer);
 begin lua_pop(fLuaState, ACount); end;
 
@@ -707,6 +733,9 @@ begin
   inherited destroy;
 end;
 
+function TLuaClass.fGetSelf: TLuaClass;
+begin result:= Self; end;
+
 procedure TLuaClass.PushMethod(ALuaState: TLuaState; AMethod: tLuaFunction);
 begin
   lua_pushlightuserdata(ALuaState, TMethod(AMethod).Data);
@@ -746,7 +775,6 @@ begin
       end;
     finally clear; end;
 end;
-
 
 procedure TLuaClass.RegisterGlobalMethod(ALuaState: TLuaState; const AName: ansistring; AMethod: tLuaFunction);
 begin
