@@ -94,11 +94,16 @@ begin
 end;
 
 function EnumChildWindowsCB(hWindow: HWND; lParam: LPARAM): bool; stdcall;
+var wnd_pid : THandle;
 begin
   if (lParam <> 0) then begin
     if (AnsiCompareText(GetWindowTextStr(hWindow), pEnumParams(lParam)^.caption) = 0) then begin
-      pEnumParams(lParam)^.result:= hWindow;
-      result:= false;
+      wnd_pid:= 0;
+      GetWindowThreadProcessId(hWindow, @wnd_pid);
+      if (wnd_pid = pEnumParams(lParam)^.pid) then begin
+        pEnumParams(lParam)^.result:= hWindow;
+        result:= false;
+      end else result:= true;
     end else result:= true;
   end else result:= false;
 end;
