@@ -5,12 +5,12 @@ unit lua_quik_resources_main;
 interface
 
 uses  windows, classes, sysutils, math,
-      LuaLib, LuaHelpers,
+      LuaLib53, LuaHelpers,
       lua_quik_resources_utils;
 
 const package_name       = 'quik_resources';
 
-const lua_supported_libs : array[0..1] of pAnsiChar = ('Lua5.1.dll', 'qlua.dll');
+const lua_supported_libs : array[0..0] of pAnsiChar = ('Lua53.dll');
 
 type  tLuaQuikResources      = class;
 

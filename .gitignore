@@ -11,3 +11,4 @@
 @build*.bat
 *.tlb
 *.pyc
+/unused
