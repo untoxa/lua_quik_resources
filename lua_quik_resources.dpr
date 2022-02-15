@@ -3,7 +3,7 @@
 library lua_quik_resources;
 
 uses  sysutils,
-      LuaLib53,
+      LuaLib54,
       lua_quik_resources_main;
 
 {$R *.res}
